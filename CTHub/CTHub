@@ -1,5 +1,5 @@
 #!/usr/bin/python
-__version__ = '0.1'
+__version__ = '0.2'
 
 ##----PACKAGE------##
 import argparse
@@ -8,6 +8,7 @@ import time
 import sys
 import os
 from argparse import RawTextHelpFormatter
+from pkg_resources import resource_filename
 
 ##----MAIN---------#
 def main():
@@ -16,7 +17,7 @@ def main():
 	if len(sys.argv) < 2:
 		print_ornament('   ABORT! No input! Try \'CTHub -h\'!', 100, ' ', 1, 0)
 	
-	elif not args.example or args.configure == 'none':
+	elif not args.example and args.configure == 'none':
 		run_mode_simple(args)
 
 	else:
@@ -156,7 +157,7 @@ def get_args():
 
 	parser.add_argument('-SL', '--shortlabel', help='short label.', default='none')
 	parser.add_argument('-LL', '--longlabel', help='long label.', default='none')
-	parser.add_argument('-E', '--email', help='user email.', default='none')
+	parser.add_argument('-EM', '--email', help='user email.', default='none')
 
 #---head
 	args = parser.parse_args()
@@ -204,15 +205,15 @@ def run_mode_complex(args):
 			print_ornament('  Fix the problems above and re-try!', 100, ' ', 0, 0)
 
 		else:
-			output_dir = make_dir(os.path.normpath(args.output) + '/')
-			output_hub_dir = make_dir(output_dir + args.hub + '/')
-			output_genome_dir = make_dir(output_hub_dir + args.genomes + '/')
+			args_complex = preset_complex[1]
 
-			preset_complex_args = preset_complex[1]
+			output_dir = make_dir(os.path.normpath(args_complex.output) + '/')
+			output_hub_dir = make_dir(output_dir + args_complex.hub + '/')
+			output_genome_dir = make_dir(output_hub_dir + args_complex.genomes + '/')
 
-			create_genomes_txt(output_hub_dir, preset_complex_args)
-			create_hub_txt(output_hub_dir, preset_complex_args)
-			create_trackDB_txt(output_genome_dir, args, preset_complex[2])
+			create_genomes_txt(output_hub_dir, args_complex)
+			create_hub_txt(output_hub_dir, args_complex)
+			create_trackDB_txt(output_genome_dir, args_complex, preset_complex[2])
 
 			print_ornament('CONGRATS! CTHub was finished!', 100, ' ', 1, 0)
 
@@ -249,23 +250,23 @@ def run_preset_simple(args):
 
 #---run preset complex--
 def run_preset_complex(args):
-	if not os.path.isfile(args.input):
+	if not os.path.isfile(args.configure):
 		print_ornament('   ABORT! No \'configure.txt\' file!', 100, ' ', 1, 0)
 		return [False]
 
 	else:
 		configure_content = open(args.configure, 'rU').readlines()
-		configure_content_header = [x[1:] for x in configure_content if x.startswith('#')]
+		configure_content_header = [x[1:].rstrip() for x in configure_content if x.startswith('#')]
 
 		configure_content_header_dict = {}
 		for item in configure_content_header:
 			configure_content_header_dict[item.split(' ')[0]] = item.split(' ')[1]
 
-		preset_complex_args = get_class_from_dict(**configure_content_header_dict)
+		args_complex = get_class_from_dict(**configure_content_header_dict)
 
 		trackDB_txt_complex = [x for x in configure_content if not x.startswith('#')][1:]
 
-		return [True, preset_complex_args, trackDB_txt_complex]
+		return [True, args_complex, trackDB_txt_complex]
 
 #---create genomes txt--
 def create_genomes_txt(output_hub_dir, args):
