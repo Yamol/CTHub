@@ -16,8 +16,11 @@ def main():
 	if len(sys.argv) < 2:
 		print_ornament('   ABORT! No input! Try \'CTHub -h\'!', 100, ' ', 1, 0)
 	
+	elif not args.example or args.configure == 'none':
+		run_mode_simple(args)
+
 	else:
-		run_mode_one(args)
+		run_mode_complex(args)
 	
 ##----CODA---------##
 	print_ornament('> END', 100, ' ', 1, 1)
@@ -148,6 +151,9 @@ def get_args():
 	parser.add_argument('-TN', '--trackname', help='track name, separated by \',\'. (eg: track_name1,track_name2)', default='none')
 	parser.add_argument('-TF', '--trackfile', help='track file, separated by \',\'. (eg: track_file1.bw,track_file2.bw)', default='none')
 
+	parser.add_argument('-E', '--example', help='create a \'configure.txt\' example file. open and modify it according to your data.', action='store_true', default=False)
+	parser.add_argument('-C', '--configure', help='custom \'configure.txt\' file.', default='none')
+
 	parser.add_argument('-SL', '--shortlabel', help='short label.', default='none')
 	parser.add_argument('-LL', '--longlabel', help='long label.', default='none')
 	parser.add_argument('-E', '--email', help='user email.', default='none')
@@ -164,12 +170,12 @@ def get_args():
 
 	return args
 
-#---run mode one---
-def run_mode_one(args):
+#---run mode simple---
+def run_mode_simple(args):
 	start_time = datetime.datetime.now()
-	preset_one = run_preset_one(args)
+	preset_simple = run_preset_simple(args)
 
-	if not preset_one:
+	if not preset_simple:
 		print_ornament('  Fix the problems above and re-try!', 100, ' ', 0, 0)
 
 	else:
@@ -183,8 +189,35 @@ def run_mode_one(args):
 
 		print_ornament('CONGRATS! CTHub was finished!', 100, ' ', 1, 0)
 
-#---run preset one--
-def run_preset_one(args):
+#---run mode complex
+def run_mode_complex(args):
+	if args.example:
+		configure_example_file = resource_filename(os.path.basename(sys.argv[0]), 'configure.txt')
+		os.system('cp ' + configure_example_file + ' .')
+		print_ornament('\'configure.txt\' created in current dir, modify it!', 100, ' ', 0, 0)
+
+	else:
+		start_time = datetime.datetime.now()
+		preset_complex = run_preset_complex(args)
+
+		if not preset_complex:
+			print_ornament('  Fix the problems above and re-try!', 100, ' ', 0, 0)
+
+		else:
+			output_dir = make_dir(os.path.normpath(args.output) + '/')
+			output_hub_dir = make_dir(output_dir + args.hub + '/')
+			output_genome_dir = make_dir(output_hub_dir + args.genomes + '/')
+
+			preset_complex_args = preset_complex[1]
+
+			create_genomes_txt(output_hub_dir, preset_complex_args)
+			create_hub_txt(output_hub_dir, preset_complex_args)
+			create_trackDB_txt(output_genome_dir, args, preset_complex[2])
+
+			print_ornament('CONGRATS! CTHub was finished!', 100, ' ', 1, 0)
+
+#---run preset simple--
+def run_preset_simple(args):
 	if args.genomes == 'none':
 		check_required_args('-G/--genome')
 
@@ -214,6 +247,26 @@ def run_preset_one(args):
 
 		return True
 
+#---run preset complex--
+def run_preset_complex(args):
+	if not os.path.isfile(args.input):
+		print_ornament('   ABORT! No \'configure.txt\' file!', 100, ' ', 1, 0)
+		return [False]
+
+	else:
+		configure_content = open(args.configure, 'rU').readlines()
+		configure_content_header = [x[1:] for x in configure_content if x.startswith('#')]
+
+		configure_content_header_dict = {}
+		for item in configure_content_header:
+			configure_content_header_dict[item.split(' ')[0]] = item.split(' ')[1]
+
+		preset_complex_args = get_class_from_dict(**configure_content_header_dict)
+
+		trackDB_txt_complex = [x for x in configure_content if not x.startswith('#')][1:]
+
+		return [True, preset_complex_args, trackDB_txt_complex]
+
 #---create genomes txt--
 def create_genomes_txt(output_hub_dir, args):
 	genomes_txt_file = output_hub_dir + 'genomes.txt'
@@ -236,23 +289,25 @@ def create_hub_txt(output_hub_dir, args):
 	else:
 		print_ornament(' WARNING! \'hub.txt\' existed! Skipped.', 100, ' ', 1, 0)
 
-#---create trackDB txt-- zhe
-def create_trackDB_txt(output_genome_dir, args):
+#---create trackDB txt--
+def create_trackDB_txt(output_genome_dir, args, trackDB_txt = ''):
 	trackDB_txt_file = output_genome_dir + 'trackDb.txt'
 
 	if not os.path.isfile(trackDB_txt_file):
-		trackDB_txt = ''
-		track_number = len(args.trackname.split(','))
+		if trackDB_txt == '':
+			trackDB_txt = ''
+			track_number = len(args.trackname.split(','))
 
-		for i in range(track_number):
-			track_name = args.trackname.split(',')[i]
-			track_file = args.trackfile.split(',')[i]
-			trackDB_txt += 'track {0}\nbigDataUrl {1}\nshortLabel {0}\nlongLabel {0}\ntype {2}\n\n'.format(track_name, track_file, args.tracktype)
+			for i in range(track_number):
+				track_name = args.trackname.split(',')[i]
+				track_file = args.trackfile.split(',')[i]
+				trackDB_txt += 'track {0}\nbigDataUrl {1}\nshortLabel {0}\nlongLabel {0}\ntype {2}\n\n'.format(track_name, track_file, args.tracktype)
 
 		write_content(trackDB_txt_file, trackDB_txt)
 
 	else:
 		print_ornament(' WARNING! \'trackDb.txt\' existed! Skipped.', 100, ' ', 1, 0)
+
 
 ##----PROCESS------##
 if __name__ == '__main__':
